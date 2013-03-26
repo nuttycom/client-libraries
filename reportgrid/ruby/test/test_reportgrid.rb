@@ -145,12 +145,12 @@ class ReportGridClientTest < Test::Unit::TestCase
     #assert response[ReportGrid::Periodicity::ETERNITY].length > 0
   end
 
-  def test_property_values
-    api = ReportGridClientTest.build_test_client
-    response = api.property_values('/', 'test.test')
-    assert_equal response.class, Array
-    assert_include response, 123
-  end
+#  def test_property_values
+#    api = ReportGridClientTest.build_test_client
+#    response = api.property_values('/', 'test.test')
+#    assert_equal response.class, Array
+#    assert_include response, 123
+#  end
 
   def test_property_value_count
     api = ReportGridClientTest.build_test_client
