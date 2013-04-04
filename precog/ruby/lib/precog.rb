@@ -113,7 +113,7 @@ module Precog
     
 
     # Send an HTTP request
-    def method_missing(name, service, action, options={}, content_type = 'application/json')
+    def method_missing(name, service, action, options={}, content_type = 'application/json', body_to_json=true)
       options[:body]    ||= ''
       options[:headers] ||= {}
       options[:parameters] ||= {}
@@ -137,7 +137,7 @@ module Precog
       # Set up message
       message = "#{name.to_s.upcase} to #{@host}:#{@port}#{path} with headers (#{options[:headers].to_json })"
       if options[:body]
-        body = (content_type=='application/json')? options[:body].to_json : options[:body]
+        body = (content_type=='application/json' && body_to_json)? options[:body].to_json : options[:body]
         message += " and body (#{body})"
       end
 
@@ -279,7 +279,7 @@ module Precog
       end
       action = @api.sanitize_path("/#{Paths::FS}/#{path}")
       @api.post(Services::INGEST,action, 
-        { :parameters=> parameters, :body => content },type)
+        { :parameters=> parameters, :body => content },type, !content.is_a?(String))
     end
 
     def ingest_batch(path,content,type, receipt, options={})
