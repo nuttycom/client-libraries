@@ -43,8 +43,6 @@ class PrecogClientTest < Test::Unit::TestCase
     @api_key=response['apiKey']
     #connection with api key
     @api=Precog::Precog.new(@api_key, HOST, PORT)
-    #clean up previous data if exists
-    @api.delete(@account_id)
   end
 
   def teardown
@@ -122,28 +120,55 @@ class PrecogClientTest < Test::Unit::TestCase
 
   def test_ingest_csv
     options = {:delimiter => ",", :quote =>'"', :escape => "\\" }
-    response=@api.ingest_batch(@account_id, '"product","price"
+
+    path="#{@account_id}/csv1"
+    @api.delete(path)
+    response=@api.ingest_batch(path, '"product","price"
       "tardis","$10.000"
       "Dalek armour","$9.999,99"', "csv",true)
     assert_equal 2, response['ingested']
+
+    response=@api.query(@account_id, "load(\"//csv1\")")
+
+    assert_equal JSON.parse('{ "product": "tardis", "price": "$10.000" }'), response[0]
+    assert_equal JSON.parse('{ "product": "Dalek armour", "price": "$9.999,99" }'), response[1]
+
   end
 
-  def test_ingest_json
-    json_data = '{ "user": "something", "json_dta": { "nested": "blah"} }'
+  def test_ingest_json_string
+    json_data = '{ "user": "something", "json_dta": { "nested": "blah"} }
+{ "user": "something1", "json_dta": { "nested": "blah2"} }'
     response=@api.ingest_batch(@account_id, json_data, "json",true)
-    assert_equal 1, response['ingested']
+    assert_equal 2, response['ingested']
   end
 
-  def test_ingest__and_query_json
+  def test_ingest_query_json_string
+
+    json_data = '{ "user": "something", "json_dta": { "nested": "blah"} }
+{ "user": "something1", "json_dta": { "nested": "blah2"} }'
+    path="#{@account_id}/data_2"
+    #clean up previous data if exists
+    @api.delete(path)
+    response=@api.ingest_batch(path, json_data, "json",true)
+    assert_equal 2, response['ingested']
+
+    response=@api.query(@account_id, "load(\"//data_2\")")
+
+    assert_equal JSON.parse('{ "user": "something", "json_dta": { "nested": "blah"} }'), response[0]
+    assert_equal JSON.parse('{ "user": "something1", "json_dta": { "nested": "blah2"} }'), response[1]
+
+  end
+
+  def test_ingest_and_query_json
 
     json_data = { 'user'=> 'something', 'json_dta' =>{ 'nested'=> 'blah'} }
-    path="#{@account_id}/data2"
-
+    path="#{@account_id}/data_3"
+    #clean up previous data if exists
+    @api.delete(path)
     response=@api.ingest_batch(path, json_data, "json",true)
     assert_equal 1, response['ingested']
 
-    response=@api.query(@account_id, "load(\"//data2\")")
-
+    response=@api.query(@account_id, "load(\"//data_3\")")
 
     assert_equal json_data, response[0]
     assert_equal json_data["user"], response[0]["user"]
@@ -152,6 +177,8 @@ class PrecogClientTest < Test::Unit::TestCase
 
   def test_store_and_query
     path="#{@account_id}/data/user"
+    #clean up previous data if exists
+    @api.delete(path)
     json_data={ 'user' => 'something'  }
     response=@api.store(path, json_data)
     assert_equal 1, response['ingested']
@@ -163,18 +190,35 @@ class PrecogClientTest < Test::Unit::TestCase
   def test_ingest_json_no_receipt
     json_data = '{ "user": "something", "json_dta": { "nested": "blah"} }'
     response=@api.ingest_batch(@account_id, json_data, "json",false)
-    assert_equal 68, response['content-length'] 
+    assert_equal 56, response['content-length']
+
   end
 
   def test_ingest_stream_json
     json_data = '{ "user": "something", "json_dta": { "nested": "blah"} }'
-    response=@api.ingest_stream(@account_id, json_data, "json")
-    assert_equal 1, response['ingested'] # ?
+    path=@account_id+'/strm_1'
+    #clean up previous data if exists
+    @api.delete(path)
+    response=@api.ingest_stream(path, json_data, "json")
+    assert_equal 1, response['ingested']
+    sleep(10)
+    response=@api.query(@account_id, "load(\"//strm_1\")")
+
+    assert_equal json_data, response[0]
+    assert_equal "something", response[0]["user"]
   end
 
   def test_store
-    response=@api.store(@account_id, { :user => 'something' })
+    event={ :user => 'something' }
+    path=@account_id+'/str'
+    @api.delete(path)
+
+    response=@api.store(path, event)
     assert_equal 1, response['ingested']
+    sleep(10)
+    response=@api.query(@account_id, "load(\"//str\")")
+    assert_equal event, response[0]
+    assert_equal "something", response[0]["user"]
   end
 
   def test_query
